@@ -14,7 +14,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY . .
 
 # Expose the port (Hugging Face uses 7860 by default)
-EXPOSE 7860
+EXPOSE 10000
 
 # Run the app with Gunicorn
-CMD ["gunicorn", "-b", "0.0.0.0:7860", "app:app"]
+CMD ["gunicorn", "-b", "0.0.0.0:10000", "app:app"]

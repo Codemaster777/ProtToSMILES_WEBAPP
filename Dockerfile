@@ -1,6 +1,9 @@
 # Use Python 3.8 as the base image
 FROM python:3.8
 
+# Install OpenBLAS (required for MXNet)
+RUN apt-get update && apt-get install -y libopenblas-dev
+
 # Set the working directory inside the container
 WORKDIR /app
 

@@ -11,3 +11,4 @@ mxnet==1.8
 networkx
 scipy
 pandas
+ipython

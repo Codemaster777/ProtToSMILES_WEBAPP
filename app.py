@@ -7,31 +7,33 @@ from transformers import AutoModel
 from bio_embeddings.embed import ProtTransBertBFDEmbedder
 from modelstrc import CVanilla_RNN_Builder, get_mol_from_graph_list
 
-# DIRECTORIES
-bio_model_dir = os.path.join(os.getcwd(), "modelsBioembed")  # For bio-embeddings
-cvn_model_dir = os.path.join(os.getcwd(), "models_folder")  # For CVanilla_RNN_Builder
+# Define absolute paths inside the container
+BASE_DIR = "/app"
+BIO_MODEL_DIR = os.path.join(BASE_DIR, "modelsBioembed")  # Bio-embeddings directory
+CVN_MODEL_DIR = os.path.join(BASE_DIR, "models_folder")  # CVanilla_RNN_Builder directory
+UPLOAD_FOLDER = os.path.join(BASE_DIR, "Samples")  # Samples directory
 
-os.makedirs(bio_model_dir, exist_ok=True)
-os.makedirs(cvn_model_dir, exist_ok=True)
-
-os.environ["TMPDIR"] = bio_model_dir
-os.environ["TEMP"] = bio_model_dir
-os.environ["TMP"] = bio_model_dir
-
-UPLOAD_FOLDER = "Samples"
+# Ensure directories exist
+os.makedirs(BIO_MODEL_DIR, exist_ok=True)
+os.makedirs(CVN_MODEL_DIR, exist_ok=True)
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+
+# Set environment variables for temporary storage
+os.environ["TMPDIR"] = BIO_MODEL_DIR
+os.environ["TEMP"] = BIO_MODEL_DIR
+os.environ["TMP"] = BIO_MODEL_DIR
 
 app = Flask(__name__)
 
-model_path = os.path.join(bio_model_dir, "pytorch_model.bin")
+# Load pre-trained model if not already downloaded
+model_path = os.path.join(BIO_MODEL_DIR, "pytorch_model.bin")
 if not os.path.exists(model_path):
     print("Downloading ProtTrans-BERT-BFD model...")
-    AutoModel.from_pretrained("Rostlab/prot_bert_bfd", low_cpu_mem_usage=True).save_pretrained(bio_model_dir)
+    AutoModel.from_pretrained("Rostlab/prot_bert_bfd", low_cpu_mem_usage=True).save_pretrained(BIO_MODEL_DIR)
 
-
-# BIO-EMBEDDING MODEL LOADING
+# Load bio-embedding model
 try:
-    embedder = ProtTransBertBFDEmbedder(model_directory=bio_model_dir)
+    embedder = ProtTransBertBFDEmbedder(model_directory=BIO_MODEL_DIR)
 except Exception as e:
     print(f"Error loading ProtTrans-BERT-BFD model: {e}")
     embedder = None
@@ -43,7 +45,7 @@ def generate_bio_embeddings(sequence):
     try:
         embedding_protein = embedder.embed(sequence)
         embedding_per_protein = embedder.reduce_per_protein(embedding_protein)
-        return np.array(embedding_per_protein).reshape(1, -1)  # Reshape for model compatibility
+        return np.array(embedding_per_protein).reshape(1, -1)
     except Exception as e:
         print(f"Embedding Error: {e}")
         return None
@@ -56,14 +58,14 @@ def generate_smiles(sequence, n_samples=100):
     if protein_embedding is None:
         return None, "Embedding generation failed!"
 
-    # TRAINED CVanilla_RNN_Builder MODEL LOADING
-    model = CVanilla_RNN_Builder(cvn_model_dir, gpu_id=None)
+    # Load trained CVanilla_RNN_Builder model
+    model = CVanilla_RNN_Builder(CVN_MODEL_DIR, gpu_id=None)
 
-    # MOLECULAR GRAPH GENERATION
+    # Generate molecular graphs
     samples = model.sample(n_samples, c=protein_embedding[0], output_type='graph')
     valid_samples = [sample for sample in samples if sample is not None]
 
-    # CONVERSION TO SMILES
+    # Convert to SMILES
     smiles_list = [
         Chem.MolToSmiles(mol) for mol in get_mol_from_graph_list(valid_samples, sanitize=True) if mol is not None
     ]
@@ -71,7 +73,7 @@ def generate_smiles(sequence, n_samples=100):
     if not smiles_list:
         return None, "No valid SMILES generated!"
 
-    # SAVING TO FILE
+    # Save to file
     filename = os.path.join(UPLOAD_FOLDER, "SMILES_GENERATED.txt")
     with open(filename, "w") as file:
         file.write("\n".join(smiles_list))

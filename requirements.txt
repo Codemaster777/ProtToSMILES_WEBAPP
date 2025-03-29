@@ -1,0 +1,14 @@
+Flask
+gunicorn  
+rdkit
+transformers
+bio-embeddings
+torch
+huggingface_hub
+molvs
+numpy==1.23.5
+mxnet==1.8
+networkx
+scipy
+pandas
+ipython
